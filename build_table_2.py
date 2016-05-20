@@ -14,7 +14,7 @@
 #   a0, d[i], b[i] : terms of the approximation
 #   err            : maximum error of the best fit
 #
-# 3) Will use my own least square algoritme
+# A) Will use my own least square algoritme
 #    Will be slower => Numpy optimization first, then numba or cython 
 #    
 #    Change the coefficient : d = a/b 
@@ -60,67 +60,34 @@ def make_fx(x_min,x_max,p,N):
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-def f_approx(x, coef):  #x vector no scalar
-    k = (len(coef)-1)/2
-    y = x*0+coef[0]
+def f_approx(x, a0, a, coef):  #x vector no scalar
+    y = np.ones(len(x))*a0
     for i in range(len(x)):
-        y[i] += np.sum(coef[1:k+1]/(x[i]+coef[k+1:]))
+        y[i] += np.sum(a/(x[i]+coef))
     return y
 
-    
 def err_func(coef, x, y):
-    return (f_approx(x, coef)-y)
+    a0,a = fit_a_d(x,y,coef)
+    return (f_approx(x, a0, a, coef)-y)
     
-def D_f_app(coef,x,y):
-    k = int((len(coef)-1)/2)
-    derr = []
-    for p in x:
-        d = np.zeros(2*k+1, dtype=type)
-        d[0] = 1
-        d[1:k+1] = 1/(p+coef[k+1:])
-        d[k+1:]  = -coef[1:k+1]/(p+coef[k+1:])**2
-        derr.append(d)
-    return derr
-
-    
-def sort_coef(coef):
-    ind = np.argsort(coef[2])
-    coef[2] = coef[2][ind]
-    coef[1] = coef[1][ind]
-    
-def def_coef(k,p):
-    a0 = 1
-    d = -p*np.arange(k,dtype=type)/k  # the sign of the d are usualy opposed to the sign of p
-    b = np.arange(k,dtype=type)       # positive so the there is no singularity in the range
-    return [a0,d,b]
+def fit_a_d(X,Y,coef): #given the b coefficient, the a0, and d can be fited exactly using lin_alg
+    k = len(coef)
+    N = len(X)
+    A = np.zeros((k+1,k+1))
+    B = np.zeros( k+1 )
+    A[0,0] = N; B[0] = np.sum(Y)
+    for i in range(k):
+        A[i+1,0] = np.sum(1/(X+coef[i])) 
+        B[i+1]   = np.sum(Y/(X+coef[i])) 
+        for j in range(k):
+            A[i+1,j+1] = np.sum(1/((X+coef[i])*(X+coef[j]))) 
+    A[0,1:] = A[1:,0]
+    ad = np.linalg.solve(A, B)
+    return ad[0],ad[1:]
     
     
     
-    
-    
-    
-    
+def fit_b
     
     
     
@@ -128,9 +95,8 @@ def def_coef(k,p):
     
 def run_min(x_min,x_max,p,N,coef):
     X,Y = make_fx(x_min,x_max,p,N)
-    coef_s,success=leastsq(err_func,coef,args=(X,Y), Dfun = D_f_app,ftol=1.49012e-15, xtol=1.49012e-15, gtol=0.0)
-    sort_coef(coef_s)
-    coef = coef_s
+    fit_b(coef,X,Y)
+    coef.sort()
     X,Y = make_fx(x_min,x_max,p,1000)
     error = max([np.max(err_func(coef,X,Y)),-np.min(err_func(coef,X,Y))])
     return success, error, coef
